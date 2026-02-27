@@ -69,7 +69,15 @@
             <p class="text-gray-600 mb-6" id="result-name">王小明，你的成績是：</p>
             
             <div class="text-6xl font-black text-blue-600 mb-2" id="final-score">100</div>
-            <p class="text-gray-500 mb-8 font-medium">分 / 100 分</p>
+            <p class="text-gray-500 mb-6 font-medium">分 / 100 分</p>
+
+            <!-- 新增：錯題回顧區塊 -->
+            <div id="review-section" class="mb-6 text-left max-h-48 overflow-y-auto bg-gray-50 p-4 rounded-xl border border-gray-200 hidden shadow-inner">
+                <h3 class="font-bold text-gray-700 mb-3 flex items-center gap-2">
+                    <span>📝</span> 錯題回顧：
+                </h3>
+                <ul id="wrong-answers-list" class="space-y-4"></ul>
+            </div>
 
             <div id="save-status" class="mb-6 text-sm font-semibold px-4 py-3 rounded-lg bg-yellow-50 text-yellow-700 border border-yellow-200">
                 ⏳ 正在將成績儲存至雲端...
@@ -116,6 +124,7 @@
         let currentQuestionIndex = 0;
         let score = 0;
         let userName = "";
+        let wrongAnswers = []; // 新增：紀錄錯題的陣列
 
         // 工具函式：打亂陣列順序
         function shuffleArray(array) {
@@ -129,6 +138,11 @@
 
         function formatFraction(top, bottom) {
             return `<div class="fraction"><span>${top}</span><span>${bottom}</span></div>`;
+        }
+
+        // 新增：用於錯題回顧區塊的「小型分數」格式化函式
+        function formatFractionSmall(top, bottom) {
+            return `<span class="inline-flex flex-col items-center align-middle text-sm leading-none mx-1 font-bold"><span class="border-b-2 border-current px-1 pb-[2px]">${top}</span><span class="px-1 pt-[2px]">${bottom}</span></span>`;
         }
 
         function switchScreen(screenId) {
@@ -148,6 +162,7 @@
             userName = nameInput;
             score = 0;
             currentQuestionIndex = 0;
+            wrongAnswers = []; // 每次開始時清空錯題紀錄
             
             // 隨機挑選 20 題
             currentQuestions = shuffleArray(allQuestions).slice(0, 20);
@@ -180,6 +195,13 @@
         function checkAnswer(selectedOpt, correctOpt) {
             if (selectedOpt.t === correctOpt.top && selectedOpt.b === correctOpt.bottom) {
                 score += 5; // 每題 5 分，總分維持 100 分
+            } else {
+                // 新增：如果答錯了，將題目和答案資訊存起來
+                wrongAnswers.push({
+                    q: currentQuestions[currentQuestionIndex].q,
+                    userAns: selectedOpt,
+                    correctAns: correctOpt
+                });
             }
             
             currentQuestionIndex++;
@@ -196,6 +218,29 @@
             document.getElementById('result-name').innerText = `${userName}，你的成績是：`;
             document.getElementById('final-score').innerText = score;
             
+            // 新增：處理並顯示錯題回顧
+            const reviewSection = document.getElementById('review-section');
+            const wrongList = document.getElementById('wrong-answers-list');
+            wrongList.innerHTML = ''; // 清空先前的列表
+
+            if (wrongAnswers.length > 0) {
+                reviewSection.classList.remove('hidden'); // 顯示錯題區塊
+                wrongAnswers.forEach((item, index) => {
+                    const li = document.createElement('li');
+                    li.className = "text-sm border-b border-gray-200 pb-3 last:border-0 last:pb-0";
+                    li.innerHTML = `
+                        <div class="font-semibold text-gray-800 mb-1">${index + 1}. 小數：<span class="text-lg text-blue-600">${item.q}</span></div>
+                        <div class="flex flex-wrap items-center gap-x-4 gap-y-2 mt-2">
+                            <div class="text-red-500 flex items-center bg-red-50 px-2 py-1 rounded">你的答案： ${formatFractionSmall(item.userAns.t, item.userAns.b)}</div>
+                            <div class="text-green-600 flex items-center bg-green-50 px-2 py-1 rounded">正確答案： ${formatFractionSmall(item.correctAns.top, item.correctAns.bottom)}</div>
+                        </div>
+                    `;
+                    wrongList.appendChild(li);
+                });
+            } else {
+                reviewSection.classList.add('hidden'); // 如果全對，隱藏錯題區塊
+            }
+
             saveToGoogleSheets(userName, score);
         }
 
